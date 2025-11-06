@@ -6,9 +6,17 @@ import SearchBar from "@/components/SearchBar";
 import useFetch from "@/services/useFetch";
 import {fetchMovies} from "@/services/api";
 import MovieCard from "@/components/MovieCard";
+import {getTrendingMovies} from "@/services/appwrite";
+import TrendingCard from "@/components/TrendingCard";
 
 export default function Index() {
     const router = useRouter();
+
+    const {
+        data: trendingMovies,
+        loading: trendingLoading,
+        error: trendingError,
+    } = useFetch(getTrendingMovies);
 
     const {
         data: movies,
@@ -17,6 +25,12 @@ export default function Index() {
     } = useFetch(() => fetchMovies({
         query: ''
     }));
+
+    const uniqueTrendingMovies =
+        trendingMovies?.filter(
+            (movie, index, self) =>
+                index === self.findIndex((m) => m.movie_id === movie.movie_id)
+        ) || [];
 
     return (
         <View className={'flex-1 bg-primary'}>
@@ -27,28 +41,44 @@ export default function Index() {
             }}>
                 <Image source={icons.logo} className={'w-12 f-10 mt-20 mb-10 mx-auto'}/>
 
-                {moviesLoading ?
+                {moviesLoading || trendingLoading ?
                     (
                         <ActivityIndicator size={'large'} color={'#0000ff'} className={'mt-10 self-center'}/>
                     )
-                    : moviesError ?
+                    : moviesError || trendingError ?
                         (
-                            <Text>Error: {moviesError?.message}</Text>
+                            <Text>Error: {moviesError?.message || trendingError?.message}</Text>
                         ) : (
                             <View className={'flex-1 mt-5'}>
                                 <SearchBar
                                     onPress={() => router.push("/search")}
                                     placeholder={'Search for a movie'}
                                 />
+                                {trendingMovies && trendingMovies?.length > 0 && (
+                                    <View className={'mt-10'}>
+                                        <Text className={'text-lg text-white mb-3 font-bold'}>Trending movies</Text>
+                                    </View>
+                                )}
                                 <>
+                                    <FlatList
+                                        horizontal={true}
+                                        showsHorizontalScrollIndicator={false}
+                                        ItemSeparatorComponent={() => <View className={'w-4'}/>}
+                                        data={uniqueTrendingMovies}
+                                        renderItem={({item, index}) => (
+                                            <TrendingCard movie={item} index={index}/>
+                                        )}
+                                        keyExtractor={(item) => item.movie_id.toString()}
+                                    />
+
                                     <Text className={'text-lg text-white font-bold mt-5 mb-3'}>Latest Movies</Text>
 
                                     <FlatList
                                         data={movies}
                                         renderItem={({item}) => (
-                                           <MovieCard
-                                               {...item}
-                                           />
+                                            <MovieCard
+                                                {...item}
+                                            />
                                         )}
                                         keyExtractor={(item) => item.id.toString()}
                                         numColumns={3}
